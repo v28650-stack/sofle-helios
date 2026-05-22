@@ -11,31 +11,27 @@ jobs:
       - name: Checkout keymap repo
         uses: actions/checkout@v4
 
-      - name: Clone QMK firmware
-        run: |
-          git clone --depth 1 https://github.com/qmk/qmk_firmware.git
-          cd qmk_firmware
-          git submodule update --init --recursive --depth 1
-
       - name: Install QMK CLI
         run: pip3 install qmk
 
+      - name: Setup QMK
+        run: qmk setup -H ~/qmk_firmware --yes
+
       - name: Copy keymap into QMK
         run: |
-          mkdir -p qmk_firmware/keyboards/sofle/keymaps/helios_mine
-          cp keymap.c qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp rules.mk qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp config.h qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp ocean_dream.c qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp ocean_dream.h qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          mkdir -p ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine
+          cp keymap.c ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp rules.mk ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp config.h ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp ocean_dream.c ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp ocean_dream.h ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
 
-      - name: Install build dependencies
-        run: |
-          cd qmk_firmware
-          python3 -m pip install -r requirements.txt
-          sudo apt-get install -y gcc-arm-none-eabi
+      - name: Install ARM toolchain
+        run: sudo apt-get install -y gcc-arm-none-eabi
 
       - name: Build firmware
-        run: |
-          cd qmk_firmware
-          qmk compile -kb sofle
+        run: qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with
