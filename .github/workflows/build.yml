@@ -84,3 +84,14 @@ jobs:
           echo "Show rules.mk and config.h (first 200 lines each)"
           head -n 200 ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine/rules.mk || true
           head -n 200 ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine/config.h || true
+      - name: Build verbose and dump logs
+        working-directory: ${{ github.workspace }}/qmk_firmware
+        run: |
+          set -e
+          echo "Cleaning..."
+          qmk clean -kb sofle/rev1 -km helios_mine || true
+          echo "Building (verbose)..."
+          qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios V=1 2>&1 | tee qmk_build_verbose.log
+          echo "=== build log start ==="
+          sed -n '1,400p' qmk_build_verbose.log || true
+          echo "=== build log end ==="
