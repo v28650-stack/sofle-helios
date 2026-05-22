@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout keymap repo
         uses: actions/checkout@v4
@@ -18,15 +19,16 @@ jobs:
         run: qmk setup -H $HOME/qmk_firmware --yes
 
       - name: Copy keymap into QMK
+        working-directory: $HOME/qmk_firmware
         run: |
-          mkdir -p $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine
-          cp keymap.c $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp rules.mk $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp config.h $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp ocean_dream.c $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp ocean_dream.h $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp oled_graphics.c $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp oled_graphics.h $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          mkdir -p keyboards/sofle/keymaps/helios_mine
+          cp $GITHUB_WORKSPACE/keymap.c keyboards/sofle/keymaps/helios_mine/
+          cp $GITHUB_WORKSPACE/rules.mk keyboards/sofle/keymaps/helios_mine/
+          cp $GITHUB_WORKSPACE/config.h keyboards/sofle/keymaps/helios_mine/
+          cp $GITHUB_WORKSPACE/ocean_dream.c keyboards/sofle/keymaps/helios_mine/
+          cp $GITHUB_WORKSPACE/ocean_dream.h keyboards/sofle/keymaps/helios_mine/
+          cp $GITHUB_WORKSPACE/oled_graphics.c keyboards/sofle/keymaps/helios_mine/
+          cp $GITHUB_WORKSPACE/oled_graphics.h keyboards/sofle/keymaps/helios_mine/
 
       - name: Install ARM toolchain
         run: sudo apt-get install -y gcc-arm-none-eabi
@@ -36,9 +38,19 @@ jobs:
         run: |
           qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios
 
+      - name: List build output
+        working-directory: $HOME/qmk_firmware
+        run: ls -R .build
+
+      - name: Stage artifact
+        working-directory: $HOME/qmk_firmware
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/artifact
+          cp .build/sofle_rev1_helios_mine_helios.uf2 $GITHUB_WORKSPACE/artifact/
+
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: sofle-helios-firmware
-          path: $HOME/qmk_firmware/.build/sofle_rev1_helios_mine_helios.uf2
+          path: artifact/
           if-no-files-found: error
