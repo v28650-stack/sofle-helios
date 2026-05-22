@@ -1,1 +1,5 @@
+name: Build Sofle Helios Firmware
 
+on:
+  push:
+  workflow_dispatch:
