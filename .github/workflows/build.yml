@@ -37,6 +37,18 @@ jobs:
         working-directory: ${{ github.workspace }}/qmk_firmware
         run: |
           qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios
+      - name: Verify runtime and console
+        run: |
+          echo "UF2 files:"
+          ls -la ${{ github.workspace }}/qmk_firmware/.build || true
+          echo "Artifact sizes:"
+          for f in ${{ github.workspace }}/qmk_firmware/.build/*uf2; do if [ -e "$f" ]; then stat -c "%n %s" "$f"; else echo "no uf2"; fi; done
+          echo "Keymap files:"
+          ls -la ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine || true
+          echo "rules.mk:"
+          sed -n '1,200p' ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine/rules.mk || true
+          echo "config.h:"
+          sed -n '1,200p' ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine/config.h || true
 
       - name: List build output
         working-directory: ${{ github.workspace }}/qmk_firmware
