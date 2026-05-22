@@ -40,5 +40,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sofle-helios-firmware
-          path: $HOME/qmk_firmware/.build/sofle_rev1_helios_mine_helios.uf2
+          path: $HOME/qmk_firmware/.build/sofle_v2_helios_mine_helios.uf2
           if-no-files-found: error
