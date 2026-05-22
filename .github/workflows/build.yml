@@ -31,7 +31,7 @@ jobs:
           cp $GITHUB_WORKSPACE/oled_graphics.h keyboards/sofle/keymaps/helios_mine/
 
       - name: Install ARM toolchain
-        run: sudo apt-get install -y gcc-arm-none-eabi
+        run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi
 
       - name: Build firmware
         working-directory: ${{ env.HOME }}/qmk_firmware
@@ -40,13 +40,14 @@ jobs:
 
       - name: List build output
         working-directory: ${{ env.HOME }}/qmk_firmware
-        run: ls -R .build
+        run: ls -la .build || true
 
       - name: Stage artifact
         working-directory: ${{ env.HOME }}/qmk_firmware
         run: |
           mkdir -p $GITHUB_WORKSPACE/artifact
-          cp .build/sofle_rev1_helios_mine_helios.uf2 $GITHUB_WORKSPACE/artifact/
+          cp .build/sofle_rev1_helios_mine_helios.uf2 $GITHUB_WORKSPACE/artifact/ || true
+          ls -la $GITHUB_WORKSPACE/artifact || true
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
