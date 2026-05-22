@@ -32,8 +32,8 @@ jobs:
         run: sudo apt-get install -y gcc-arm-none-eabi
 
       - name: Build firmware
+        working-directory: $HOME/qmk_firmware
         run: |
-          cd $HOME/qmk_firmware
           qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios
 
       - name: Upload firmware
