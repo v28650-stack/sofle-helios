@@ -1,30 +1,48 @@
-name: CI Syntax Smoke Test
+name: Build Sofle Helios Firmware
 
 on:
+  push:
   workflow_dispatch:
 
 jobs:
-  smoke-test:
+  build:
     runs-on: ubuntu-latest
+    env:
+      QMK_HOME: ${{ github.workspace }}/qmk_firmware
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Print repo root
+      - name: Install system dependencies
         run: |
-          echo "PWD: $(pwd)"
-          echo "List .github/workflows"
-          ls -la .github/workflows || true
+          sudo apt-get update
+          sudo apt-get install -y git python3-pip gcc-arm-none-eabi dfu-util
 
-      - name: Show current build.yml (if present)
+      - name: Install QMK CLI
         run: |
-          if [ -f .github/workflows/build.yml ]; then
-            echo "---- build.yml start ----"
-            sed -n '1,200p' .github/workflows/build.yml || true
-            echo "---- build.yml end ----"
-          else
-            echo "build.yml not found"
-          fi
+          pip3 install --user qmk
 
-      - name: Success marker
-        run: echo "Actions YAML parsed and ran successfully"
+      - name: Setup QMK firmware tree
+        run: |
+          mkdir -p "${QMK_HOME}"
+          qmk setup -H "${QMK_HOME}" --yes || true
+
+      - name: Copy keymap files into QMK tree
+        run: |
+          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
+          for f in keymap.c rules.mk config.h ocean_dream.c ocean_dream.h oled_graphics.c oled_graphics.h; do
+            if [ -f "${GITHUB_WORKSPACE}/$f" ]; then
+              cp "${GITHUB_WORKSPACE}/$f" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+            fi
+          done
+
+      - name: Write rules.mk for keymap
+        run: |
+          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
+          printf '%s\n' "VIA_ENABLE = yes" "OLED_ENABLE = yes" "ANIMATIONS = yes" "ENCODER_ENABLE = yes" > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/rules.mk"
+
+      - name: Write config.h for keymap
+        run: |
+          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
+          printf '%s\n' "#pragma once" "#define OLED_DRIVER_ENABLE" "#define OLED_DISPLAY_128X32" "#define OLED_TIMEOUT 300
