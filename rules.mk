@@ -6,3 +6,4 @@ LTO_ENABLE = yes
 ANIMATIONS = yes
 SRC += ocean_dream.c
 SRC += oled_graphics.c
+ENCODER_ENABLE = yes
