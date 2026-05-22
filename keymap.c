@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include QMK_KEYBOARD_H
-#ifdef OCEAN_DREAM_ENABLE
 #include "ocean_dream.h"
-#endif
 
 enum sofle_layers {
     _QWERTY,
@@ -87,24 +85,23 @@ oled_rotation_t oled_init_user(oled_rotation_t rotation) {
     if (is_keyboard_master()) {
         return OLED_ROTATION_270;
     }
-    return rotation;
+    return OLED_ROTATION_270;
 }
 
 bool oled_task_user(void) {
-#ifdef OCEAN_DREAM_ENABLE
-    if (!is_keyboard_master()) {
+    if (is_keyboard_master()) {
+        // Master side: show layer info
+        oled_write_P(PSTR("Layer"), false);
+        switch (get_highest_layer(layer_state)) {
+            case _QWERTY:  oled_write_P(PSTR("BASE "), false); break;
+            case _LOWER:   oled_write_P(PSTR("LOWER"), false); break;
+            case _RAISE:   oled_write_P(PSTR("RAISE"), false); break;
+            case _ADJUST:  oled_write_P(PSTR("ADJST"), false); break;
+            default:       oled_write_P(PSTR("?????"), false); break;
+        }
+    } else {
+        // Slave side: ocean dream animation
         render_ocean_dream();
-        return false;
-    }
-#endif
-    // Master side: show layer info
-    oled_write_P(PSTR("Layer"), false);
-    switch (get_highest_layer(layer_state)) {
-        case _QWERTY:  oled_write_P(PSTR("BASE "), false); break;
-        case _LOWER:   oled_write_P(PSTR("LOWER"), false); break;
-        case _RAISE:   oled_write_P(PSTR("RAISE"), false); break;
-        case _ADJUST:  oled_write_P(PSTR("ADJST"), false); break;
-        default:       oled_write_P(PSTR("?????"), false); break;
     }
     return false;
 }
@@ -115,9 +112,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case KC_LCTL:
         case KC_RCTL:
-#ifdef OCEAN_DREAM_ENABLE
             is_calm = record->event.pressed;
-#endif
             break;
     }
     return true;
