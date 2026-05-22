@@ -52,6 +52,25 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [_ADJUST] = { ENCODER_CCW_CW(KC_VOLD, KC_VOLU) }
 };
 #endif
+#include "quantum.h"
+
+bool encoder_update_user(uint8_t index, bool clockwise) {
+    // index 0 = left encoder, index 1 = right encoder (adjust if your board differs)
+    if (index == 0) {
+        if (clockwise) {
+            tap_code(KC_VOLU);
+        } else {
+            tap_code(KC_VOLD);
+        }
+    } else if (index == 1) {
+        if (clockwise) {
+            tap_code(KC_PGDN);
+        } else {
+            tap_code(KC_PGUP);
+        }
+    }
+    return true;
+}
 
 #ifdef OLED_ENABLE
 
