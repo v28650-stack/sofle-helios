@@ -25,24 +25,51 @@ jobs:
 
       - name: Setup QMK firmware tree
         run: |
-          mkdir -p "${QMK_HOME}"
-          qmk setup -H "${QMK_HOME}" --yes || true
+          mkdir -p ${QMK_HOME}
+          qmk setup -H ${QMK_HOME} --yes || true
 
-      - name: Copy keymap files into QMK tree
+      - name: Copy keymap files into QMK tree (safe copy)
         run: |
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
+          mkdir -p ${QMK_HOME}/keyboards/sofle/keymaps/helios_mine
           for f in keymap.c rules.mk config.h ocean_dream.c ocean_dream.h oled_graphics.c oled_graphics.h; do
-            if [ -f "${GITHUB_WORKSPACE}/$f" ]; then
-              cp "${GITHUB_WORKSPACE}/$f" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+            if [ -f ${GITHUB_WORKSPACE}/$f ]; then
+              cp ${GITHUB_WORKSPACE}/$f ${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/ || true
             fi
           done
 
       - name: Write rules.mk for keymap
         run: |
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          printf '%s\n' "VIA_ENABLE = yes" "OLED_ENABLE = yes" "ANIMATIONS = yes" "ENCODER_ENABLE = yes" > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/rules.mk"
+          mkdir -p ${QMK_HOME}/keyboards/sofle/keymaps/helios_mine
+          printf '%s\n' 'VIA_ENABLE = yes' 'OLED_ENABLE = yes' 'ANIMATIONS = yes' 'ENCODER_ENABLE = yes' > ${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/rules.mk
 
       - name: Write config.h for keymap
         run: |
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          printf '%s\n' "#pragma once" "#define OLED_DRIVER_ENABLE" "#define OLED_DISPLAY_128X32" "#define OLED_TIMEOUT 300
+          mkdir -p ${QMK_HOME}/keyboards/sofle/keymaps/helios_mine
+          printf '%s\n' '#pragma once' '#define OLED_DRIVER_ENABLE' '#define OLED_DISPLAY_128X32' '#define OLED_TIMEOUT 300000' '#define DEBUG_ENABLE' '#define CONSOLE_ENABLE' > ${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/config.h
+
+      - name: Overwrite oled_graphics.c with test implementation
+        run: |
+          mkdir -p ${QMK_HOME}/keyboards/sofle/keymaps/helios_mine
+          printf '%s\n' '#include "quantum.h"' '' 'bool oled_task_user(void) {' '  if (is_keyboard_master()) {' '    oled_set_cursor(0, 0);' '    oled_write_ln("LEFT OLED OK", false);' '  } else {' '    oled_set_cursor(0, 0);' '    oled_write_ln("RIGHT OLED OK", false);' '  }' '  return true;' '}' > ${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/oled_graphics.c
+
+      - name: Build verbose and save log
+        working-directory: ${{ env.QMK_HOME }}
+        run: |
+          set -e
+          qmk clean -kb sofle/rev1 -km helios_mine || true
+          qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios V=1 2>&1 | tee qmk_build_verbose.log || true
+          sed -n '1,400p' qmk_build_verbose.log || true
+
+      - name: Upload build log and artifacts
+        working-directory: ${{ env.QMK_HOME }}
+        run: |
+          mkdir -p ${GITHUB_WORKSPACE}/artifact
+          cp qmk_build_verbose.log ${GITHUB_WORKSPACE}/artifact/ 2>/dev/null || true
+          cp .build/*.uf2 ${GITHUB_WORKSPACE}/artifact/ 2>/dev/null || true
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sofle-helios-firmware
