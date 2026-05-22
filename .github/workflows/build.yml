@@ -21,36 +21,4 @@ jobs:
       - name: Copy keymap into QMK
         working-directory: ${{ env.HOME }}/qmk_firmware
         run: |
-          mkdir -p keyboards/sofle/keymaps/helios_mine
-          cp $GITHUB_WORKSPACE/keymap.c keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/rules.mk keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/config.h keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/ocean_dream.c keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/ocean_dream.h keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/oled_graphics.c keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/oled_graphics.h keyboards/sofle/keymaps/helios_mine/
-
-      - name: Install ARM toolchain
-        run: sudo apt-get install -y gcc-arm-none-eabi
-
-      - name: Build firmware
-        working-directory: ${{ env.HOME }}/qmk_firmware
-        run: |
-          qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios
-
-      - name: List build output
-        working-directory: ${{ env.HOME }}/qmk_firmware
-        run: ls -R .build
-
-      - name: Stage artifact
-        working-directory: ${{ env.HOME }}/qmk_firmware
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/artifact
-          cp .build/sofle_rev1_helios_mine_helios.uf2 $GITHUB_WORKSPACE/artifact/
-
-      - name: Upload firmware
-        uses: actions/upload-artifact@v4
-        with:
-          name: sofle-helios-firmware
-          path: artifact/
-          if-no-files-found: error
+          mkdir -p keyboards/sofle/keymaps/helios_m
