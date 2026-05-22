@@ -32,12 +32,9 @@ jobs:
       - name: Build firmware
         run: qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios
 
-      - name: List build output
-        run: find $HOME/qmk_firmware/.build -type f | sort
-
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: sofle-helios-firmware
-          path: $HOME/qmk_firmware/.build/*.uf2
-          if-no-files-found: warn
+          path: /home/runner/qmk_firmware/.build/sofle_rev1_helios_mine_helios.uf2
+          if-no-files-found: error
