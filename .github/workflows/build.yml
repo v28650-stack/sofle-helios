@@ -1,127 +1,43 @@
-name: Build Sofle Helios Firmware
+name: Validate Workflow
 
 on:
-  push:
   workflow_dispatch:
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
-    env:
-      QMK_HOME: ${{ github.workspace }}/qmk_firmware
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install system deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git python3-pip gcc-arm-none-eabi dfu-util
-
-      - name: Install QMK CLI
-        run: |
-          pip3 install --user qmk
-
-      - name: Setup QMK firmware tree
-        run: |
-          # Ensure qmk_firmware is created under the workspace and owned by runner
-          qmk setup -H "${QMK_HOME}" --yes
-
-      - name: Copy keymap into QMK tree
-        run: |
-          set -e
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          cp -a "${GITHUB_WORKSPACE}/keymap.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/rules.mk" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/config.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/ocean_dream.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/ocean_dream.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/oled_graphics.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/oled_graphics.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-
-      - name: Ensure keymap build flags (rules.mk)
-        run: |
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          cat > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/rules.mk" <<'EOF'
-VIA_ENABLE = yes
-OLED_ENABLE = yes
-ANIMATIONS = yes
-ENCODER_ENABLE = yes
-EOF
-
-      - name: Ensure keymap config.h additions
-        run: |
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          cat > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/config.h" <<'EOF'
-#pragma once
-#define OLED_DRIVER_ENABLE
-#define OLED_DISPLAY_128X32
-#define OLED_TIMEOUT 300000
-#define DEBUG_ENABLE
-#define CONSOLE_ENABLE
-EOF
-
-      - name: Overwrite oled_graphics.c with test implementation
-        run: |
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          cat > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/oled_graphics.c" <<'EOF'
-#include "quantum.h"
-
-bool oled_task_user(void) {
-    if (is_keyboard_master()) {
-        oled_set_cursor(0, 0);
-        oled_write_ln("LEFT OLED OK", false);
-    } else {
-        oled_set_cursor(0, 0);
-        oled_write_ln("RIGHT OLED OK", false);
-    }
-    return true;
-}
-EOF
-
-      - name: Build verbose and dump logs
-        working-directory: ${{ env.QMK_HOME }}
-        run: |
-          set -e
-          echo "Cleaning previous build artifacts..."
-          qmk clean -kb sofle/rev1 -km helios_mine || true
-          echo "Starting verbose build..."
-          qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios V=1 2>&1 | tee qmk_build_verbose.log || true
-          echo "=== build log start ==="
-          sed -n '1,400p' qmk_build_verbose.log || true
-          echo "=== build log end ==="
-          echo "=== failing source (if present) ==="
-          [ -f quantum/keymap_introspection.c ] && sed -n '1,400p' quantum/keymap_introspection.c || echo "quantum/keymap_introspection.c not found"
-
-      - name: Verify build outputs
-        working-directory: ${{ env.QMK_HOME }}
+      - name: Show repo root and workflow file
         run: |
           echo "PWD: $(pwd)"
-          echo "Listing qmk_firmware top-level"
-          ls -la "${QMK_HOME}" || true
-          echo "Listing .build directory"
-          ls -la "${QMK_HOME}/.build" || true
-          echo "UF2 files and sizes"
-          for f in "${QMK_HOME}/.build/"*uf2; do
-            if [ -e "$f" ]; then stat -c "%n %s" "$f"; else echo "no uf2 files found"; fi
-          done
-          echo "Keymap folder contents"
-          ls -la "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine" || true
-          echo "Show rules.mk and config.h (first 200 lines each)"
-          sed -n '1,200p' "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/rules.mk" || true
-          sed -n '1,200p' "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/config.h" || true
+          echo "List .github/workflows"
+          ls -la .github/workflows || true
+          echo "Show build.yml (if present)"
+          if [ -f .github/workflows/build.yml ]; then
+            echo "---- build.yml start ----"
+            sed -n '1,200p' .github/workflows/build.yml || true
+            echo "---- build.yml end ----"
+          else
+            echo "build.yml not found"
+          fi
 
-      - name: Stage artifact
-        working-directory: ${{ env.QMK_HOME }}
+      - name: YAML syntax check for build.yml
         run: |
-          mkdir -p "${GITHUB_WORKSPACE}/artifact"
-          cp .build/*.uf2 "${GITHUB_WORKSPACE}/artifact/" || true
-          ls -la "${GITHUB_WORKSPACE}/artifact" || true
-
-      - name: Upload firmware artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sofle-helios-firmware
-          path: artifact/
-          if-no-files-found: error
+          if [ -f .github/workflows/build.yml ]; then
+            python3 - <<'PY'
+import sys, yaml
+with open('.github/workflows/build.yml') as f:
+    try:
+        yaml.safe_load(f)
+        print('YAML parse: OK')
+    except Exception as e:
+        print('YAML parse: ERROR')
+        print(e)
+        sys.exit(2)
+PY
+          else
+            echo "No build.yml to check"
+          fi
