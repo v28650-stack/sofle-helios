@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 
 void render_logo(void);
 void render_wpm(void);
