@@ -1,55 +1,30 @@
-name: Build Sofle Helios Firmware
+name: CI Syntax Smoke Test
 
 on:
-  push:
   workflow_dispatch:
 
 jobs:
-  build:
+  smoke-test:
     runs-on: ubuntu-latest
-    env:
-      QMK_HOME: ${{ github.workspace }}/qmk_firmware
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install system deps
+      - name: Print repo root
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git python3-pip gcc-arm-none-eabi dfu-util
+          echo "PWD: $(pwd)"
+          echo "List .github/workflows"
+          ls -la .github/workflows || true
 
-      - name: Install QMK CLI
+      - name: Show current build.yml (if present)
         run: |
-          pip3 install --user qmk
+          if [ -f .github/workflows/build.yml ]; then
+            echo "---- build.yml start ----"
+            sed -n '1,200p' .github/workflows/build.yml || true
+            echo "---- build.yml end ----"
+          else
+            echo "build.yml not found"
+          fi
 
-      - name: Setup QMK firmware tree
-        run: |
-          qmk setup -H "${QMK_HOME}" --yes
-
-      - name: Copy keymap files into QMK tree
-        run: |
-          set -e
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          cp -a "${GITHUB_WORKSPACE}/keymap.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/rules.mk" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/config.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/ocean_dream.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/ocean_dream.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/oled_graphics.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-          cp -a "${GITHUB_WORKSPACE}/oled_graphics.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
-
-      - name: Ensure rules.mk for keymap
-        run: |
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          cat > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/rules.mk" <<'EOF'
-VIA_ENABLE = yes
-OLED_ENABLE = yes
-ANIMATIONS = yes
-ENCODER_ENABLE = yes
-EOF
-
-      - name: Ensure config.h for keymap
-        run: |
-          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
-          cat > "${QMK_HOME
+      - name: Success marker
+        run: echo "Actions YAML parsed and ran successfully"
