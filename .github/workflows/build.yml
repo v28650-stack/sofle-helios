@@ -25,6 +25,8 @@ jobs:
           cp config.h $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
           cp ocean_dream.c $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
           cp ocean_dream.h $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp oled_graphics.c $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp oled_graphics.h $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
 
       - name: Install ARM toolchain
         run: sudo apt-get install -y gcc-arm-none-eabi
