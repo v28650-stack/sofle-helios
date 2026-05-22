@@ -1,6 +1,7 @@
 #pragma once
 
-#define OLED_TIMEOUT 60000
+#define OLED_DISPLAY_128X32
+#define OLED_TIMEOUT 300000
 #define VIA_NO_ENCODER
 // config.h additions
 #define OLED_DRIVER_ENABLE
