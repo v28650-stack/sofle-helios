@@ -15,16 +15,16 @@ jobs:
         run: pip3 install qmk
 
       - name: Setup QMK
-        run: qmk setup -H ~/qmk_firmware --yes
+        run: qmk setup -H $HOME/qmk_firmware --yes
 
       - name: Copy keymap into QMK
         run: |
-          mkdir -p ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine
-          cp keymap.c ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp rules.mk ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp config.h ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp ocean_dream.c ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
-          cp ocean_dream.h ~/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          mkdir -p $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine
+          cp keymap.c $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp rules.mk $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp config.h $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp ocean_dream.c $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
+          cp ocean_dream.h $HOME/qmk_firmware/keyboards/sofle/keymaps/helios_mine/
 
       - name: Install ARM toolchain
         run: sudo apt-get install -y gcc-arm-none-eabi
@@ -34,4 +34,7 @@ jobs:
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
-        with
+        with:
+          name: sofle-helios-firmware
+          path: $HOME/qmk_firmware/.build/*.uf2
+          if-no-files-found: warn
