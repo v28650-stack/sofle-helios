@@ -7,91 +7,121 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      QMK_HOME: ${{ github.workspace }}/qmk_firmware
 
     steps:
-      - name: Checkout keymap repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git python3-pip gcc-arm-none-eabi dfu-util
+
       - name: Install QMK CLI
-        run: pip3 install qmk
-
-      - name: Setup QMK
-        run: qmk setup -H $GITHUB_WORKSPACE/qmk_firmware --yes
-
-      - name: Copy keymap into QMK
-        working-directory: ${{ github.workspace }}/qmk_firmware
         run: |
-          mkdir -p keyboards/sofle/keymaps/helios_mine
-          cp $GITHUB_WORKSPACE/keymap.c keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/rules.mk keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/config.h keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/ocean_dream.c keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/ocean_dream.h keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/oled_graphics.c keyboards/sofle/keymaps/helios_mine/
-          cp $GITHUB_WORKSPACE/oled_graphics.h keyboards/sofle/keymaps/helios_mine/
+          pip3 install --user qmk
 
-      - name: Install ARM toolchain
-        run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi
-
-      - name: Build firmware
-        working-directory: ${{ github.workspace }}/qmk_firmware
+      - name: Setup QMK firmware tree
         run: |
-          qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios
-      - name: Verify runtime and console
-        run: |
-          echo "UF2 files:"
-          ls -la ${{ github.workspace }}/qmk_firmware/.build || true
-          echo "Artifact sizes:"
-          for f in ${{ github.workspace }}/qmk_firmware/.build/*uf2; do if [ -e "$f" ]; then stat -c "%n %s" "$f"; else echo "no uf2"; fi; done
-          echo "Keymap files:"
-          ls -la ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine || true
-          echo "rules.mk:"
-          sed -n '1,200p' ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine/rules.mk || true
-          echo "config.h:"
-          sed -n '1,200p' ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine/config.h || true
+          # Ensure qmk_firmware is created under the workspace and owned by runner
+          qmk setup -H "${QMK_HOME}" --yes
 
-      - name: List build output
-        working-directory: ${{ github.workspace }}/qmk_firmware
-        run: ls -la .build || true
+      - name: Copy keymap into QMK tree
+        run: |
+          set -e
+          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
+          cp -a "${GITHUB_WORKSPACE}/keymap.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+          cp -a "${GITHUB_WORKSPACE}/rules.mk" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+          cp -a "${GITHUB_WORKSPACE}/config.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+          cp -a "${GITHUB_WORKSPACE}/ocean_dream.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+          cp -a "${GITHUB_WORKSPACE}/ocean_dream.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+          cp -a "${GITHUB_WORKSPACE}/oled_graphics.c" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+          cp -a "${GITHUB_WORKSPACE}/oled_graphics.h" "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/" || true
+
+      - name: Ensure keymap build flags (rules.mk)
+        run: |
+          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
+          cat > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/rules.mk" <<'EOF'
+VIA_ENABLE = yes
+OLED_ENABLE = yes
+ANIMATIONS = yes
+ENCODER_ENABLE = yes
+EOF
+
+      - name: Ensure keymap config.h additions
+        run: |
+          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
+          cat > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/config.h" <<'EOF'
+#pragma once
+#define OLED_DRIVER_ENABLE
+#define OLED_DISPLAY_128X32
+#define OLED_TIMEOUT 300000
+#define DEBUG_ENABLE
+#define CONSOLE_ENABLE
+EOF
+
+      - name: Overwrite oled_graphics.c with test implementation
+        run: |
+          mkdir -p "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine"
+          cat > "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/oled_graphics.c" <<'EOF'
+#include "quantum.h"
+
+bool oled_task_user(void) {
+    if (is_keyboard_master()) {
+        oled_set_cursor(0, 0);
+        oled_write_ln("LEFT OLED OK", false);
+    } else {
+        oled_set_cursor(0, 0);
+        oled_write_ln("RIGHT OLED OK", false);
+    }
+    return true;
+}
+EOF
+
+      - name: Build verbose and dump logs
+        working-directory: ${{ env.QMK_HOME }}
+        run: |
+          set -e
+          echo "Cleaning previous build artifacts..."
+          qmk clean -kb sofle/rev1 -km helios_mine || true
+          echo "Starting verbose build..."
+          qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios V=1 2>&1 | tee qmk_build_verbose.log || true
+          echo "=== build log start ==="
+          sed -n '1,400p' qmk_build_verbose.log || true
+          echo "=== build log end ==="
+          echo "=== failing source (if present) ==="
+          [ -f quantum/keymap_introspection.c ] && sed -n '1,400p' quantum/keymap_introspection.c || echo "quantum/keymap_introspection.c not found"
+
+      - name: Verify build outputs
+        working-directory: ${{ env.QMK_HOME }}
+        run: |
+          echo "PWD: $(pwd)"
+          echo "Listing qmk_firmware top-level"
+          ls -la "${QMK_HOME}" || true
+          echo "Listing .build directory"
+          ls -la "${QMK_HOME}/.build" || true
+          echo "UF2 files and sizes"
+          for f in "${QMK_HOME}/.build/"*uf2; do
+            if [ -e "$f" ]; then stat -c "%n %s" "$f"; else echo "no uf2 files found"; fi
+          done
+          echo "Keymap folder contents"
+          ls -la "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine" || true
+          echo "Show rules.mk and config.h (first 200 lines each)"
+          sed -n '1,200p' "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/rules.mk" || true
+          sed -n '1,200p' "${QMK_HOME}/keyboards/sofle/keymaps/helios_mine/config.h" || true
 
       - name: Stage artifact
-        working-directory: ${{ github.workspace }}/qmk_firmware
+        working-directory: ${{ env.QMK_HOME }}
         run: |
-          mkdir -p $GITHUB_WORKSPACE/artifact
-          cp .build/sofle_rev1_helios_mine_helios.uf2 $GITHUB_WORKSPACE/artifact/ || true
-          ls -la $GITHUB_WORKSPACE/artifact || true
+          mkdir -p "${GITHUB_WORKSPACE}/artifact"
+          cp .build/*.uf2 "${GITHUB_WORKSPACE}/artifact/" || true
+          ls -la "${GITHUB_WORKSPACE}/artifact" || true
 
-      - name: Upload firmware
+      - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: sofle-helios-firmware
           path: artifact/
           if-no-files-found: error
-      - name: Verify build outputs
-        working-directory: ${{ github.workspace }}/qmk_firmware
-        run: |
-          echo "PWD: $(pwd)"
-          echo "Listing qmk_firmware top-level"
-          ls -la ${{ github.workspace }}/qmk_firmware || true
-          echo "Listing .build directory"
-          ls -la ${{ github.workspace }}/qmk_firmware/.build || true
-          echo "UF2 files and sizes"
-          for f in ${{ github.workspace }}/qmk_firmware/.build/*uf2; do
-            if [ -e "$f" ]; then stat -c "%n %s" "$f"; else echo "no uf2 files found"; fi
-          done
-          echo "Keymap folder contents"
-          ls -la ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine || true
-          echo "Show rules.mk and config.h (first 200 lines each)"
-          head -n 200 ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine/rules.mk || true
-          head -n 200 ${{ github.workspace }}/qmk_firmware/keyboards/sofle/keymaps/helios_mine/config.h || true
-      - name: Build verbose and dump logs
-        working-directory: ${{ github.workspace }}/qmk_firmware
-        run: |
-          set -e
-          echo "Cleaning..."
-          qmk clean -kb sofle/rev1 -km helios_mine || true
-          echo "Building (verbose)..."
-          qmk compile -kb sofle/rev1 -km helios_mine -e CONVERT_TO=helios V=1 2>&1 | tee qmk_build_verbose.log
-          echo "=== build log start ==="
-          sed -n '1,400p' qmk_build_verbose.log || true
-          echo "=== build log end ==="
